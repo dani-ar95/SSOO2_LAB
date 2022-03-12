@@ -8,11 +8,14 @@
 #define READ 0
 #define WRITE 1
 
-pid_t array[3];
+#define RUTA_LOG "./log.txt"
+
+pid_t lista_pids[3];
 
 void signal_handler();
 void install_signal_handler();
 void crear_demonio();
+void print_log(char *modo, char *mensaje);
 
 int main()
 {
@@ -20,6 +23,7 @@ int main()
     pid_t pidB;
     pid_t pidC;
     pid_t codigo;
+    FILE *log;
 
     char *const parmList[] = {NULL};
     char *const envParms[] = {NULL};
@@ -36,10 +40,9 @@ int main()
     pipe(pipeHP);
     sprintf(tuberia, "%d", pipeHP[WRITE]);
 
-    FILE *log = fopen("log.txt", "w");
-    fprintf(log, "******* Log del sistema ********\n");
-    fclose(log);
+    print_log("w", "******* Log del sistema ********\n");
 
+    //modularizar el crear procesos
     if ((pidA = fork()) == -1)
     {
         fprintf(stderr, "Error creando el proceso PA: %s.\n", strerror(errno));
@@ -51,13 +54,13 @@ int main()
         fprintf(stderr, "Error ejecutando el proceso PA: %s.\n", strerror(errno));
         exit(EXIT_FAILURE);
     }
-    array[0] = pidA;
+    lista_pids[0] = pidA;
 
     codigo = wait(&estado);
-    array[0] = 0;
-    log = fopen("log.txt", "a");
-    fprintf(log, "Directorios creados\n");
-    fclose(log);
+    lista_pids[0] = 0;
+    print_log("a", "Directorios creados\n");
+
+    sleep(3);
 
     if ((pidB = fork()) == -1)
     {
@@ -70,7 +73,7 @@ int main()
         fprintf(stderr, "Error ejecutando el proceso PB: %s.\n", strerror(errno));
         exit(EXIT_FAILURE);
     }
-    array[1] = pidB;
+    lista_pids[1] = pidB;
     if ((pidC = fork()) == -1)
     {
         fprintf(stderr, "Error creando el proceso PC: %s.\n", strerror(errno));
@@ -83,7 +86,7 @@ int main()
         fprintf(stderr, "Error ejecutando el proceso PC: %s.\n", strerror(errno));
         exit(EXIT_FAILURE);
     }
-    array[2] = pidC;
+    lista_pids[2] = pidC;
 
     close(pipeHP[WRITE]);
     read(pipeHP[READ], nota_media, sizeof(nota_media));
@@ -94,24 +97,19 @@ int main()
 
         if (codigo == pidB)
         {
-            array[1] = 0;
-            log = fopen("log.txt", "a");
-            fprintf(log, "Copia de modelos de examen, finalizada.\n");
-            fclose(log);
+            lista_pids[1] = 0;
+            print_log("a", "Copia de modelos de examen, finalizada.\n");
         }
         else
         {
-            array[2] = 0;
-            log = fopen("log.txt", "a");
-            fprintf(log, "Creación de archivos con nota necesaria para alcanzar la nota de corte, finalizada.\n");
-            fprintf(log, "La nota media de la clase es: %s\n", nota_media);
-            fclose(log);
+            lista_pids[2] = 0;
+            char mensaje[1000];
+            sprintf(mensaje, "Creación de archivos con nota necesaria para alcanzar la nota de corte, finalizada.\nLa nota media de la clase es: %s\n", nota_media);
+            print_log("a", mensaje);
         }
     }
 
-    log = fopen("log.txt", "a");
-    fprintf(log, "FIN DE PROGRAMA");
-    fclose(log);
+    print_log("a", "FIN DE PROGRAMA");
 
     return 0;
 }
@@ -125,11 +123,11 @@ void signal_handler()
     // terminar procesos activos
     for(int i = 0; i < 3; i++)
     {
-        if (array[i] != 0)
+        if (lista_pids[i] != 0)
         {
-            if (kill(array[i], SIGINT) == 1)
+            if (kill(lista_pids[i], SIGINT) == 1)
             {
-                fprintf(stderr, "Error intentando matar al proceso con pid %d: %s.\n", array[i], strerror(errno));
+                fprintf(stderr, "Error intentando matar al proceso con pid %d: %s.\n", lista_pids[i], strerror(errno));
             }
         }
     }
@@ -145,9 +143,8 @@ void signal_handler()
         fprintf(stderr, "Error ejecutando el proceso PD: %s.\n", strerror(errno));
         exit(EXIT_FAILURE);
     }
-    FILE *log = fopen("log.txt", "a");
-    fprintf(log, "Interrupción voluntaria CTRL+C");
-    fclose(log);
+
+    print_log("a", "Interrupción voluntaria CTRL+C");
     exit(EXIT_SUCCESS);
 }
 
@@ -177,4 +174,10 @@ void crear_demonio()
         fprintf(stderr, "Error ejecutando el demonio: %s.\n", strerror(errno));
         exit(EXIT_FAILURE);
     }
+}
+
+void print_log(char *modo, char *mensaje){
+    FILE *log = fopen(RUTA_LOG, modo);
+    fputs(mensaje, log);
+    fclose(log);
 }
