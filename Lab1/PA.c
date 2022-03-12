@@ -5,6 +5,8 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
+#define CARPETA "./estudiantes"
+
 int main()
 {
 
@@ -21,10 +23,12 @@ int main()
         exit(EXIT_FAILURE);
     }
 
+    mkdir(CARPETA, 0777);
+
     while ((nread = getline(&linea, &len, fp)) != -1)
     {
         dni = strtok(linea, " ");
-        sprintf(path, "./estudiantes/%s", dni);
+        sprintf(path, "%s/%s", CARPETA, dni);
         mkdir(path, 0777);
     }
 

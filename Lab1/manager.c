@@ -10,13 +10,13 @@
 
 void signal_handler();
 void install_signal_handler();
+void crear_demonio();
 
 int main()
 {
     pid_t pidA;
     pid_t pidB;
     pid_t pidC;
-    pid_t pidD;
     pid_t codigo;
 
     char *const parmList[] = {NULL};
@@ -29,6 +29,7 @@ int main()
     int pipeHP[2];
 
     install_signal_handler();
+    crear_demonio();
 
     pipe(pipeHP);
     sprintf(tuberia, "%d", pipeHP[WRITE]);
@@ -130,6 +131,25 @@ void install_signal_handler()
     if (signal(SIGINT, signal_handler) == SIG_ERR)
     {
         fprintf(stderr, "[MANAGER] Error installing signal handler: %s.\n", strerror(errno));
+        exit(EXIT_FAILURE);
+    }
+}
+
+void crear_demonio()
+{
+    pid_t pidDemon;
+    char *const parmList[] = {NULL};
+    char *const envParms[] = {NULL};
+
+    if ((pidDemon = fork()) == -1)
+    {
+        fprintf(stderr, "Error creando el demonio: %s.\n", strerror(errno));
+        exit(EXIT_FAILURE);
+    }
+    else if (pidDemon == 0)
+    {
+        execve("daemon", parmList, envParms);
+        fprintf(stderr, "Error ejecutando el proceso PD: %s.\n", strerror(errno));
         exit(EXIT_FAILURE);
     }
 }
