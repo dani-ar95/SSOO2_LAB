@@ -15,8 +15,8 @@ proceso demonio se puede consultar con el comando "ps -axl".
 #include <syslog.h>
 #include <signal.h>
 
-#define CARPETA "./estudiantes"
-#define BACKUP "./backup"
+#define RUTA_CARPETA "./estudiantes"
+#define RUTA_BACKUP "./backup"
 
 int main()
 {
@@ -66,11 +66,13 @@ int main()
     }
 
     // Paso 8: Tarea del demonio
-    sprintf(comando, "cp -r %s %s", CARPETA, BACKUP);
-    mkdir("./backup", 0777);
+    mkdir(RUTA_BACKUP, 0777);
+    int contador = 0;
     while (1)
     {
         sleep(60);
+        contador += 1;
+        sprintf(comando, "cp -r %s %s/Backup%d", RUTA_CARPETA, RUTA_BACKUP, contador);
         system(comando);
     }
 }

@@ -3,11 +3,11 @@ DIREXE := exec/
 DIRHEA := include/
 DIRSRC := src/
 
-CFLAGS := -I$(DIRHEA) -c -Wall -ansi
+CFLAGS := -I$(DIRHEA) -c -Wall -ansi -std=c99
 LDLIBS := -lpthread -lrt
 CC := gcc
 
-all : dirs manager pa pb
+all : dirs manager PA PB PC PD Daemon
 
 dirs:
 	mkdir -p $(DIROBJ) $(DIREXE)
@@ -15,20 +15,27 @@ dirs:
 manager: $(DIROBJ)manager.o 
 	$(CC) -o $(DIREXE)$@ $^ $(LDLIBS)
 
-pa: $(DIROBJ)pa.o 
+PA: $(DIROBJ)PA.o 
 	$(CC) -o $(DIREXE)$@ $^ $(LDLIBS)
 
-pb: $(DIROBJ)pb.o 
+PB: $(DIROBJ)PB.o 
+	$(CC) -o $(DIREXE)$@ $^ $(LDLIBS)
+
+PC: $(DIROBJ)PC.o 
+	$(CC) -o $(DIREXE)$@ $^ $(LDLIBS)
+
+PD: $(DIROBJ)PD.o 
+	$(CC) -o $(DIREXE)$@ $^ $(LDLIBS)
+
+Daemon: $(DIROBJ)Daemon.o 
 	$(CC) -o $(DIREXE)$@ $^ $(LDLIBS)
 
 $(DIROBJ)%.o: $(DIRSRC)%.c
 	$(CC) $(CFLAGS) $^ -o $@
 
-test:
-	./$(DIREXE)manager 3 2 5
-
 solution:
-	./$(DIREXE)manager 2 3 4
+	./$(DIREXE)manager
+	./$(DIREXE)Daemon
 
 clean : 
-	rm -rf *~ core $(DIROBJ) $(DIREXE) $(DIRHEA)*~ $(DIRSRC)*~
+	rm -rf *~ core $(DIROBJ) $(DIREXE) $(DIRHEA)*~ $(DIRSRC)*~ estudiantes backup log.txt

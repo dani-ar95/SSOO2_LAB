@@ -10,7 +10,7 @@ estudiantes.
 #include <unistd.h>
 #include <errno.h>
 
-#define CARPETA "./estudiantes"
+#define RUTA_CARPETA "./estudiantes"
 
 int main()
 {
@@ -20,9 +20,9 @@ int main()
     char ruta_dni[1000];
     char nombre_archivo[1000];
 
-    if ((carpeta = opendir(CARPETA)) == NULL) // abrimos la carpeta estudiantes
+    if ((carpeta = opendir(RUTA_CARPETA)) == NULL) // abrimos la carpeta estudiantes
     {
-        fprintf(stderr, "Error abriendo el directorio %s: %s.\n", CARPETA, strerror(errno));
+        fprintf(stderr, "Error abriendo el directorio %s: %s.\n", RUTA_CARPETA, strerror(errno));
         exit(EXIT_FAILURE);
     }
 
@@ -30,7 +30,7 @@ int main()
     {
         if (strcmp(dit->d_name, ".") && strcmp(dit->d_name, "..")) // readdir devuelve tambien el directorio actual y anterior, eso no nos interesa
         {
-            sprintf(ruta_dni, "%s/%s/", CARPETA, dit->d_name);
+            sprintf(ruta_dni, "%s/%s/", RUTA_CARPETA, dit->d_name);
             if ((dni = opendir(ruta_dni)) == NULL) // abrimos la carpeta del dni correspondiente
             {
                 fprintf(stderr, "Error abriendo el directorio %s: %s.\n", ruta_dni, strerror(errno));
@@ -56,7 +56,7 @@ int main()
 
     if (closedir(carpeta) == -1) // cerramos la carpeta estudiantes
     {
-        fprintf(stderr, "Error cerrando el directorio %s: %s.\n", CARPETA, strerror(errno));
+        fprintf(stderr, "Error cerrando el directorio %s: %s.\n", RUTA_CARPETA, strerror(errno));
         exit(EXIT_FAILURE);
     }
 

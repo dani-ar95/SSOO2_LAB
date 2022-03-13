@@ -1,7 +1,8 @@
 /***************************************************************************************
-El proceso manager se dedica a crear y coordinar al resto de procesos, 
+El proceso manager se dedica a crear y coordinar al resto de procesos,
 además de mantener un archivo log.txt que registra la finalización de todas las tareas.
 ***************************************************************************************/
+#define _POSIX_SOURCE
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -9,6 +10,8 @@ además de mantener un archivo log.txt que registra la finalización de todas la
 #include <unistd.h>
 #include <errno.h>
 #include <sys/wait.h>
+#include <sys/types.h>
+#include <signal.h>
 
 #define READ 0
 #define WRITE 1
@@ -24,7 +27,7 @@ además de mantener un archivo log.txt que registra la finalización de todas la
 
 #define RUTA_LOG "./log.txt"
 
-pid_t gbl_lista_pids[MAX_HIJOS]; //lista global con todos los pids de los procesos creados
+pid_t gbl_lista_pids[MAX_HIJOS]; // lista global con todos los pids de los procesos creados
 
 void signal_handler();
 void install_signal_handler();
@@ -43,21 +46,20 @@ int main()
     int pipeHP[2];
 
     install_signal_handler(); // hacemos que el proceso pueda capturar señales SIGINT
-    crear_proceso("daemon", ID_DEMON); // creamos el proceso que hará las copias de seguridad
 
     print_log("w", "******* Log del sistema ********\n");
 
-    //Proceso PA
+    // Proceso PA
     crear_proceso("PA", ID_PA);
     wait(&estado);
     gbl_lista_pids[ID_PA] = 0; // indicamos que PA ha finalizado
     print_log("a", "Directorios creados\n");
 
-    //Procesos PB y PC
-    //PB
+    // Procesos PB y PC
+    // PB
     crear_proceso("PB", ID_PB);
 
-    //PC
+    // PC
     pipe(pipeHP); // creamos una tuberia para que PC pueda mandar la nota media al manager
     sprintf(tuberia, "%d", pipeHP[WRITE]);
 
@@ -69,7 +71,7 @@ int main()
     else if (pidC == 0)
     {
         close(pipeHP[READ]);
-        execl("PC", tuberia, NULL); // mandamos a PC el descriptor de la tuberia mediante execl
+        execl("./exec/PC", tuberia, NULL); // mandamos a PC el descriptor de la tuberia mediante execl
         fprintf(stderr, "Error ejecutando el proceso PC: %s.\n", strerror(errno));
         exit(EXIT_FAILURE);
     }
@@ -102,16 +104,13 @@ int main()
     return 0;
 }
 
-//Función manejadora de la interrupción voluntaria CTRL+C
+// Función manejadora de la interrupción voluntaria CTRL+C
 void signal_handler()
 {
-    pid_t pidD;
-    char *const parmList[] = {NULL};
-    char *const envParms[] = {NULL};
     int estado;
 
     // terminar procesos activos
-    for(int i = 0; i < MAX_HIJOS; i++)
+    for (int i = 0; i < MAX_HIJOS; i++)
     {
         if (gbl_lista_pids[i] != 0)
         {
@@ -122,14 +121,14 @@ void signal_handler()
         }
     }
 
-    //PD
+    // PD
     crear_proceso("PD", ID_PD);
     print_log("a", "Interrupción voluntaria CTRL+C");
     wait(&estado);
     exit(EXIT_SUCCESS);
 }
 
-//Función para que el proceso manager pueda capturar señales SIGINT
+// Función para que el proceso manager pueda capturar señales SIGINT
 void install_signal_handler()
 {
     if (signal(SIGINT, signal_handler) == SIG_ERR)
@@ -139,18 +138,23 @@ void install_signal_handler()
     }
 }
 
-//Función para escribir en el archivo log.txt
-void print_log(char *modo, char *mensaje){
+// Función para escribir en el archivo log.txt
+void print_log(char *modo, char *mensaje)
+{
     FILE *log = fopen(RUTA_LOG, modo);
     fputs(mensaje, log);
     fclose(log);
 }
 
-//Función para crear procesos hijos
-void crear_proceso(char *nombre, int ID){
+// Función para crear procesos hijos
+void crear_proceso(char *nombre, int ID)
+{
     pid_t pid;
     char *const parmList[] = {NULL};
     char *const envParms[] = {NULL};
+    char ruta_ejecutable[100];
+
+    sprintf(ruta_ejecutable, "./exec/%s", nombre);
 
     if ((pid = fork()) == ERROR)
     {
@@ -159,7 +163,7 @@ void crear_proceso(char *nombre, int ID){
     }
     else if (pid == 0)
     {
-        execve(nombre, parmList, envParms);
+        execve(ruta_ejecutable, parmList, envParms);
         fprintf(stderr, "Error ejecutando el proceso %s: %s.\n", nombre, strerror(errno));
         exit(EXIT_FAILURE);
     }

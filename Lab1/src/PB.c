@@ -2,6 +2,7 @@
 La tarea del proceso PB es copiar en cada directorio de estudiante el modelo de examen
 que le corresponde.
 ***************************************************************************************/
+#define _GNU_SOURCE
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -9,8 +10,9 @@ que le corresponde.
 #include <unistd.h>
 #include <errno.h>
 
-#define CARPETA "./estudiantes"
-#define FICHERO "./estudiantes_p1.txt"
+#define RUTA_CARPETA "./estudiantes"
+#define RUTA_FICHERO "./recursos/estudiantes_p1.txt"
+#define RUTA_MODELO "./recursos/MODELO"
 
 int main()
 {
@@ -22,11 +24,11 @@ int main()
     size_t len = 0;
     ssize_t nread;
 
-    FILE *fp = fopen(FICHERO, "r");
+    FILE *fp = fopen(RUTA_FICHERO, "r");
 
     if (!fp)
     {
-        fprintf(stderr, "Error abriendo el fichero %s: %s.\n", FICHERO, strerror(errno));
+        fprintf(stderr, "Error abriendo el fichero %s: %s.\n", RUTA_FICHERO, strerror(errno));
         exit(EXIT_FAILURE);
     }
 
@@ -34,10 +36,10 @@ int main()
     {
         dni = strtok(linea, " ");
         modelo = strtok(NULL, " ");
-        sprintf(path_copia, "%s/%s/examen%s.pdf", CARPETA, dni, modelo);
-        sprintf(path_modelo, "./MODELO%s.pdf", modelo);
+        sprintf(path_copia, "%s/%s/examen%s.pdf", RUTA_CARPETA, dni, modelo);
+        sprintf(path_modelo, "%s%s.pdf", RUTA_MODELO, modelo);
 
-        link(path_modelo, path_copia); //creamos un enlace duro al archivo original
+        link(path_modelo, path_copia); // creamos un enlace duro al archivo original
     }
 
     fclose(fp);
