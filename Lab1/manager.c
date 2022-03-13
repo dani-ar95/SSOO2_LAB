@@ -1,3 +1,8 @@
+/***************************************************************************************
+El proceso manager se dedica a crear y coordinar al resto de procesos, 
+además de mantener un archivo log.txt que registra la finalización de todas las tareas.
+***************************************************************************************/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -8,73 +13,55 @@
 #define READ 0
 #define WRITE 1
 
+#define ERROR -1
+
+#define MAX_HIJOS 5
+#define ID_PA 0
+#define ID_PB 1
+#define ID_PC 2
+#define ID_PD 3
+#define ID_DEMON 4
+
 #define RUTA_LOG "./log.txt"
 
-pid_t lista_pids[3];
+pid_t gbl_lista_pids[MAX_HIJOS]; //lista global con todos los pids de los procesos creados
 
 void signal_handler();
 void install_signal_handler();
-void crear_demonio();
 void print_log(char *modo, char *mensaje);
+void crear_proceso(char *nombre, int ID);
 
 int main()
 {
-    pid_t pidA;
-    pid_t pidB;
     pid_t pidC;
     pid_t codigo;
-    FILE *log;
-
-    char *const parmList[] = {NULL};
-    char *const envParms[] = {NULL};
 
     int estado;
     char nota_media[100];
 
-    char tuberia[80];
+    char tuberia[100];
     int pipeHP[2];
 
-    install_signal_handler();
-    crear_demonio();
-
-    pipe(pipeHP);
-    sprintf(tuberia, "%d", pipeHP[WRITE]);
+    install_signal_handler(); // hacemos que el proceso pueda capturar señales SIGINT
+    crear_proceso("daemon", ID_DEMON); // creamos el proceso que hará las copias de seguridad
 
     print_log("w", "******* Log del sistema ********\n");
 
-    //modularizar el crear procesos
-    if ((pidA = fork()) == -1)
-    {
-        fprintf(stderr, "Error creando el proceso PA: %s.\n", strerror(errno));
-        exit(EXIT_FAILURE);
-    }
-    else if (pidA == 0)
-    {
-        execve("PA", parmList, envParms);
-        fprintf(stderr, "Error ejecutando el proceso PA: %s.\n", strerror(errno));
-        exit(EXIT_FAILURE);
-    }
-    lista_pids[0] = pidA;
-
-    codigo = wait(&estado);
-    lista_pids[0] = 0;
+    //Proceso PA
+    crear_proceso("PA", ID_PA);
+    wait(&estado);
+    gbl_lista_pids[ID_PA] = 0; // indicamos que PA ha finalizado
     print_log("a", "Directorios creados\n");
 
-    sleep(3);
+    //Procesos PB y PC
+    //PB
+    crear_proceso("PB", ID_PB);
 
-    if ((pidB = fork()) == -1)
-    {
-        fprintf(stderr, "Error creando el proceso PB: %s.\n", strerror(errno));
-        exit(EXIT_FAILURE);
-    }
-    else if (pidB == 0)
-    {
-        execve("PB", parmList, envParms);
-        fprintf(stderr, "Error ejecutando el proceso PB: %s.\n", strerror(errno));
-        exit(EXIT_FAILURE);
-    }
-    lista_pids[1] = pidB;
-    if ((pidC = fork()) == -1)
+    //PC
+    pipe(pipeHP); // creamos una tuberia para que PC pueda mandar la nota media al manager
+    sprintf(tuberia, "%d", pipeHP[WRITE]);
+
+    if ((pidC = fork()) == ERROR)
     {
         fprintf(stderr, "Error creando el proceso PC: %s.\n", strerror(errno));
         exit(EXIT_FAILURE);
@@ -82,30 +69,31 @@ int main()
     else if (pidC == 0)
     {
         close(pipeHP[READ]);
-        execl("PC", tuberia, NULL);
+        execl("PC", tuberia, NULL); // mandamos a PC el descriptor de la tuberia mediante execl
         fprintf(stderr, "Error ejecutando el proceso PC: %s.\n", strerror(errno));
         exit(EXIT_FAILURE);
     }
-    lista_pids[2] = pidC;
+    gbl_lista_pids[ID_PC] = pidC;
 
     close(pipeHP[WRITE]);
-    read(pipeHP[READ], nota_media, sizeof(nota_media));
+    read(pipeHP[READ], nota_media, sizeof(nota_media)); // recibimos la nota media de parte de PC
 
     for (int i = 0; i < 2; i++)
     {
-        codigo = wait(&estado);
+        codigo = wait(&estado); // esperamos a PB o PC
 
-        if (codigo == pidB)
+        if (codigo == pidC)
         {
-            lista_pids[1] = 0;
-            print_log("a", "Copia de modelos de examen, finalizada.\n");
+            gbl_lista_pids[ID_PC] = 0; // indicamos que PC ha finalizado
+            char mensaje[1000];
+            sprintf(mensaje, "La nota media de la clase es: %s\n", nota_media);
+            print_log("a", "Creación de archivos con nota necesaria para alcanzar la nota de corte, finalizada.\n");
+            print_log("a", mensaje);
         }
         else
         {
-            lista_pids[2] = 0;
-            char mensaje[1000];
-            sprintf(mensaje, "Creación de archivos con nota necesaria para alcanzar la nota de corte, finalizada.\nLa nota media de la clase es: %s\n", nota_media);
-            print_log("a", mensaje);
+            gbl_lista_pids[ID_PB] = 0; // indicamos que PB ha finalizado
+            print_log("a", "Copia de modelos de examen, finalizada.\n");
         }
     }
 
@@ -114,70 +102,66 @@ int main()
     return 0;
 }
 
+//Función manejadora de la interrupción voluntaria CTRL+C
 void signal_handler()
 {
     pid_t pidD;
     char *const parmList[] = {NULL};
     char *const envParms[] = {NULL};
+    int estado;
 
     // terminar procesos activos
-    for(int i = 0; i < 3; i++)
+    for(int i = 0; i < MAX_HIJOS; i++)
     {
-        if (lista_pids[i] != 0)
+        if (gbl_lista_pids[i] != 0)
         {
-            if (kill(lista_pids[i], SIGINT) == 1)
+            if (kill(gbl_lista_pids[i], SIGINT) == 1)
             {
-                fprintf(stderr, "Error intentando matar al proceso con pid %d: %s.\n", lista_pids[i], strerror(errno));
+                fprintf(stderr, "Error intentando matar al proceso con pid %d: %s.\n", gbl_lista_pids[i], strerror(errno));
             }
         }
     }
 
-    if ((pidD = fork()) == -1)
-    {
-        fprintf(stderr, "Error creando el proceso PD: %s.\n", strerror(errno));
-        exit(EXIT_FAILURE);
-    }
-    else if (pidD == 0)
-    {
-        execve("PD", parmList, envParms);
-        fprintf(stderr, "Error ejecutando el proceso PD: %s.\n", strerror(errno));
-        exit(EXIT_FAILURE);
-    }
-
+    //PD
+    crear_proceso("PD", ID_PD);
     print_log("a", "Interrupción voluntaria CTRL+C");
+    wait(&estado);
     exit(EXIT_SUCCESS);
 }
 
+//Función para que el proceso manager pueda capturar señales SIGINT
 void install_signal_handler()
 {
     if (signal(SIGINT, signal_handler) == SIG_ERR)
     {
-        fprintf(stderr, "[MANAGER] Error installing signal handler: %s.\n", strerror(errno));
+        fprintf(stderr, "Error instalando el manejador de señales: %s.\n", strerror(errno));
         exit(EXIT_FAILURE);
     }
 }
 
-void crear_demonio()
-{
-    pid_t pidDemon;
-    char *const parmList[] = {NULL};
-    char *const envParms[] = {NULL};
-
-    if ((pidDemon = fork()) == -1)
-    {
-        fprintf(stderr, "Error creando el demonio: %s.\n", strerror(errno));
-        exit(EXIT_FAILURE);
-    }
-    else if (pidDemon == 0)
-    {
-        execve("daemon", parmList, envParms);
-        fprintf(stderr, "Error ejecutando el demonio: %s.\n", strerror(errno));
-        exit(EXIT_FAILURE);
-    }
-}
-
+//Función para escribir en el archivo log.txt
 void print_log(char *modo, char *mensaje){
     FILE *log = fopen(RUTA_LOG, modo);
     fputs(mensaje, log);
     fclose(log);
+}
+
+//Función para crear procesos hijos
+void crear_proceso(char *nombre, int ID){
+    pid_t pid;
+    char *const parmList[] = {NULL};
+    char *const envParms[] = {NULL};
+
+    if ((pid = fork()) == ERROR)
+    {
+        fprintf(stderr, "Error creando el proceso %s: %s.\n", nombre, strerror(errno));
+        exit(EXIT_FAILURE);
+    }
+    else if (pid == 0)
+    {
+        execve(nombre, parmList, envParms);
+        fprintf(stderr, "Error ejecutando el proceso %s: %s.\n", nombre, strerror(errno));
+        exit(EXIT_FAILURE);
+    }
+    gbl_lista_pids[ID] = pid; // añadimos el pid del proceso creado a la lista global de pids
 }

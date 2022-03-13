@@ -1,3 +1,8 @@
+/***************************************************************************************
+La tarea del proceso PD es eliminar todos los directorios y archivos asociados a los
+estudiantes.
+***************************************************************************************/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <dirent.h>

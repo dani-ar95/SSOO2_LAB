@@ -1,6 +1,6 @@
 ******* Log del sistema ********
 Directorios creados
+Copia de modelos de examen, finalizada.
 Creación de archivos con nota necesaria para alcanzar la nota de corte, finalizada.
 La nota media de la clase es: 6.00
-Copia de modelos de examen, finalizada.
 FIN DE PROGRAMA
